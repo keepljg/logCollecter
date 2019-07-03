@@ -28,7 +28,7 @@ func TestInitJobMgr(t *testing.T) {
 		Lease:   clientv3.NewLease(client),
 		Watcher: clientv3.NewWatcher(client),
 	}
-	resp,_ := jobMgr.Kv.Get(context.TODO(), common.JOB_LOCK_DIR + "tutuapp_test")
+	resp, _ := jobMgr.Kv.Get(context.TODO(), common.JOB_LOCK_DIR+"tutuapp_test")
 	for _, v := range resp.Kvs {
 		fmt.Println(string(v.Value))
 	}

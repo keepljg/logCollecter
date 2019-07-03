@@ -5,7 +5,7 @@ import (
 	"errors"
 	"github.com/astaxie/beego/logs"
 	"go.etcd.io/etcd/clientv3"
-	"logserver/common"
+	"logserver/configs"
 )
 
 //分布式乐观锁
@@ -59,7 +59,7 @@ func (this *JobLock) TryToLock() error {
 	END:
 	}()
 	// 锁路径
-	lockKey = common.JOB_LOCK_DIR + this.jobName
+	lockKey = configs.AppConfig.JobLock + this.jobName
 
 	// 创建一个事物
 	txn = this.kv.Txn(context.TODO())

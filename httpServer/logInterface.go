@@ -8,6 +8,7 @@ import (
 	"logserver/common"
 	"logserver/etcd"
 	"logserver/kafka"
+	"logserver/scheduler"
 	"tutu_task/handler"
 )
 
@@ -20,6 +21,7 @@ func NewRouter() *fasthttprouter.Router {
 	router.GET("/log/deljob", LogDelJob)
 	router.GET("/log/delall", LogAllDelJob)
 	router.POST("/log/delbulk", LogBulkDelJob)
+	router.GET("/log/runwork", GetRuningTopic)
 	return router
 }
 
@@ -143,7 +145,6 @@ ERR:
 	return
 }
 
-
 //批量删除接口
 func LogBulkDelJob(ctx *fasthttp.RequestCtx) {
 	defer func() {
@@ -196,11 +197,11 @@ func LogAllDelJob(ctx *fasthttp.RequestCtx) {
 		}
 	}()
 	var (
-		resp       map[string]map[string]interface{}
-		err error
+		resp map[string]map[string]interface{}
+		err  error
 	)
 
-	if err = etcd.GjobMgr.DeleteAllJob(); err != nil{
+	if err = etcd.GjobMgr.DeleteAllJob(); err != nil {
 		goto ERR
 	}
 
@@ -214,6 +215,24 @@ ERR:
 	return
 }
 
+func GetRuningTopic(ctx *fasthttp.RequestCtx) {
+	defer func() {
+		if err := recover(); err != nil {
+			handler.DoJSONWrite(ctx, 400, handler.GenerateResp("", -1, "failed"))
+			return
+		}
+	}()
+	var (
+		resp map[string]map[string]interface{}
+		jobs []string
+	)
+	for _, jobWork := range scheduler.Gscheduler.JobWorkTable {
+		jobs = append(jobs, jobWork.Job.Topic)
+	}
+	resp = handler.GenerateResp(jobs, 0, "success")
+	handler.DoJSONWrite(ctx, 200, resp)
+	return
+}
 
 func LogToKafka(ctx *fasthttp.RequestCtx) {
 	defer func() {
@@ -241,7 +260,6 @@ func LogToKafka(ctx *fasthttp.RequestCtx) {
 	for _, v := range logs {
 		kafkaLogs = append(kafkaLogs, v.(string))
 	}
-	fmt.Println(kafkaLogs)
 	if err = kafka.SendToKafka(kafkaLogs, topic); err != nil {
 		goto ERR
 	}
@@ -260,7 +278,7 @@ func InitHttpServer() error {
 		err    error
 	)
 	router = NewRouter()
-	if err = fasthttp.ListenAndServe(":8999", router.Handler); err != nil {
+	if err = fasthttp.ListenAndServe(":9100", router.Handler); err != nil {
 		fmt.Println("start fasthttp fail:", err.Error())
 	}
 	return err

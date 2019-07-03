@@ -1,7 +1,6 @@
 package kafka
 
 import (
-	"fmt"
 	"github.com/Shopify/sarama"
 	"github.com/astaxie/beego/logs"
 	"log"
@@ -9,9 +8,9 @@ import (
 	"logserver/configs"
 	"logserver/es"
 	"logserver/etcd"
-
-	//"sync"
 	"time"
+	//"sync"
+	//"time"
 )
 
 func SendToKafka(datas []string, topic string) error {
@@ -32,8 +31,6 @@ func SendToKafka(datas []string, topic string) error {
 	}
 	return err
 }
-
-
 
 func ConsumerFromKafka4(info *common.JobWorkInfo, lock *etcd.JobLock) {
 	config := sarama.NewConfig()
@@ -66,9 +63,6 @@ func ConsumerFromKafka4(info *common.JobWorkInfo, lock *etcd.JobLock) {
 		//wg.Add(1)
 		go consume(consumer, offsetManager, v, info, lock)
 	}
-
-	//wg.Wait()
-	fmt.Println("tui chu **************************")
 }
 func consume(c sarama.Consumer, om sarama.OffsetManager, p int32, info *common.JobWorkInfo, lock *etcd.JobLock) {
 	var (
@@ -105,16 +99,16 @@ func consume(c sarama.Consumer, om sarama.OffsetManager, p int32, info *common.J
 		select {
 		case msg := <-pc.Messages():
 			logDatas = append(logDatas, string(msg.Value))
-			pom.MarkOffset(msg.Offset+1, "")
-			if len(logDatas) >= 100 {
 
+			pom.MarkOffset(msg.Offset+1, "")
+			//es.GelasticCli.CreateSignDocument(common.CreateIndexByType(info.Job.Topic, info.Job.IndexType), string(msg.Value), info.Job.Pipeline)
+			if len(logDatas) >= 1000 {
 				es.GelasticCli.CreateBulkDocument(common.CreateIndexByType(info.Job.Topic, info.Job.IndexType), logDatas, info.Job.Pipeline)
 				common.SliceClear(&logDatas)
 			}
 			//log.Printf("[%v] Consumed message offset %v content is %s\n", p, msg.Offset, string(msg.Value))
 		case <-t.C:
 			if len(logDatas) > 0 {
-				fmt.Println(logDatas)
 				es.GelasticCli.CreateBulkDocument(common.CreateIndexByType(info.Job.Topic, info.Job.IndexType), logDatas, info.Job.Pipeline)
 				common.SliceClear(&logDatas)
 			}
@@ -128,5 +122,5 @@ func consume(c sarama.Consumer, om sarama.OffsetManager, p int32, info *common.J
 	//	log.Printf("[%v] Consumed message offset %v content is %s\n", p, msg.Offset, string(msg.Value))
 	//	pom.MarkOffset(msg.Offset+1, "")
 	//}
-	fmt.Println("tui ************")
+	logs.Info("退出" + info.Job.Topic + "日志收集协程")
 }

@@ -10,9 +10,10 @@ var (
 )
 
 type Config struct {
-	LogLevel string
-	LogPath  string
-
+	LogLevel    string
+	LogPath     string
+	JobSave     string
+	JobLock     string
 	ChanSize    int
 	EsAddr      string
 	KafkaAddr   string
@@ -38,6 +39,16 @@ func InitConf(confType, filename string) (err error) {
 	AppConfig.LogPath = conf.String("serverlogs::log_path")
 	if len(AppConfig.LogPath) == 0 {
 		AppConfig.LogPath = "./serverlogs/logs.log"
+	}
+
+	AppConfig.JobSave = conf.String("job::job_save_dir")
+	if len(AppConfig.JobSave) == 0 {
+		AppConfig.JobSave = "/job/save/"
+	}
+
+	AppConfig.JobLock = conf.String("job::job_lock_dir")
+	if len(AppConfig.JobLock) == 0 {
+		AppConfig.JobLock = "/job/lock/"
 	}
 
 	AppConfig.ChanSize, err = conf.Int("collect::chan_size")

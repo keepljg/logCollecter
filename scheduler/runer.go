@@ -7,6 +7,7 @@ import (
 	"go.etcd.io/etcd/mvcc/mvccpb"
 	"golang.org/x/net/context"
 	"logserver/common"
+	"logserver/configs"
 	"logserver/etcd"
 	"logserver/kafka"
 	"time"
@@ -21,14 +22,14 @@ func InitScheduler() {
 
 func NewScheduler() {
 	Gscheduler = &Scheduler{
-		jobEventChan: make(chan *common.JobEvent, 1000),
-		jobWorkTable: make(map[string]*common.JobWorkInfo),
+		JobEventChan: make(chan *common.JobEvent, 1000),
+		JobWorkTable: make(map[string]*common.JobWorkInfo),
 	}
 }
 
 // push log任务事件
 func (this *Scheduler) PushJobEvent(event *common.JobEvent) {
-	this.jobEventChan <- event
+	this.JobEventChan <- event
 }
 
 func (this *Scheduler) ScheuleLoop() {
@@ -37,7 +38,7 @@ func (this *Scheduler) ScheuleLoop() {
 	)
 	for {
 		select {
-		case jobEvent = <-this.jobEventChan:
+		case jobEvent = <-this.JobEventChan:
 			this.handleJobEvent(jobEvent)
 		}
 	}
@@ -55,8 +56,8 @@ func (this *Scheduler) eventWorker(job *common.Jobs) {
 	//defer jobLock.Unlock()
 	if err == nil {
 		jobWorkInfo = common.NewJobWorkInfo(job)
-		if jobWork, ok := this.jobWorkTable[job.Topic]; !ok {
-			this.jobWorkTable[job.Topic] = jobWorkInfo
+		if jobWork, ok := this.JobWorkTable[job.Topic]; !ok {
+			this.JobWorkTable[job.Topic] = jobWorkInfo
 			kafka.ConsumerFromKafka4(jobWorkInfo, jobLock)
 		} else {
 			// 重新开启新任务
@@ -72,9 +73,9 @@ func (this *Scheduler) reEventWork(jobWork *common.JobWorkInfo, newJob *common.J
 	)
 	// 先关闭当前任务
 	jobWork.CancelFunc()
-	delete(this.jobWorkTable, jobWork.Job.Topic)
+	delete(this.JobWorkTable, jobWork.Job.Topic)
 	jobWorkInfo = common.NewJobWorkInfo(newJob)
-	this.jobWorkTable[newJob.Topic] = jobWorkInfo
+	this.JobWorkTable[newJob.Topic] = jobWorkInfo
 	kafka.ConsumerFromKafka4(jobWorkInfo, lock)
 }
 
@@ -84,11 +85,11 @@ func (this *Scheduler) handleJobEvent(event *common.JobEvent) {
 	case common.JOB_EVENT_SAVE:
 		this.eventWorker(event.Job)
 	case common.JOB_EVENT_DELETE:
-		fmt.Println(this.jobWorkTable)
-	fmt.Println(event.Job.Topic)
-		if jobWork, ok := this.jobWorkTable[event.Job.Topic]; ok {
+		fmt.Println(this.JobWorkTable)
+		fmt.Println(event.Job.Topic)
+		if jobWork, ok := this.JobWorkTable[event.Job.Topic]; ok {
 			jobWork.CancelFunc()
-			delete(this.jobWorkTable, jobWork.Job.Topic)
+			delete(this.JobWorkTable, jobWork.Job.Topic)
 		}
 	}
 }
@@ -103,7 +104,7 @@ func WatcherJobs() {
 		watcherReversion int64
 		watchChan        clientv3.WatchChan
 	)
-	if getResp, err = etcd.GjobMgr.Kv.Get(context.TODO(), common.JOB_SAVE_DIR, clientv3.WithPrefix()); err != nil {
+	if getResp, err = etcd.GjobMgr.Kv.Get(context.TODO(), configs.AppConfig.JobSave, clientv3.WithPrefix()); err != nil {
 		logs.Error(err)
 		return
 	}
@@ -117,8 +118,9 @@ func WatcherJobs() {
 	}
 
 	go func() {
+		// 从getResp header 下一个版本进行监听
 		watcherReversion = getResp.Header.Revision + 1
-		watchChan = etcd.GjobMgr.Watcher.Watch(context.TODO(), common.JOB_SAVE_DIR, clientv3.WithRev(watcherReversion), clientv3.WithPrefix())
+		watchChan = etcd.GjobMgr.Watcher.Watch(context.TODO(), configs.AppConfig.JobSave, clientv3.WithRev(watcherReversion), clientv3.WithPrefix())
 		for eachChan := range watchChan {
 			for _, v := range eachChan.Events {
 				switch v.Type {
@@ -140,11 +142,10 @@ func WatcherJobs() {
 	}()
 }
 
-
 // 容灾处理
-func (this *Scheduler) restartLogJob(){
+func (this *Scheduler) restartLogJob() {
 	var (
-		t        *time.Timer
+		t *time.Timer
 	)
 	t = time.NewTimer(time.Second * 60)
 	go func() {
@@ -152,25 +153,25 @@ func (this *Scheduler) restartLogJob(){
 			select {
 			case <-t.C:
 				var (
-					jobs []*common.Jobs
+					jobs  []*common.Jobs
 					locks map[string]string
-					err error
+					err   error
 				)
 				// 所有在etcd中的log任务
-				if jobs, err = etcd.GjobMgr.ListLogJobs(); err != nil{
+				if jobs, err = etcd.GjobMgr.ListLogJobs(); err != nil {
 					logs.Error(err)
 					return
 				}
 				// 所有抢到锁的任务
-				if locks, err = etcd.GjobMgr.ListLogLocks(); err != nil{
+				if locks, err = etcd.GjobMgr.ListLogLocks(); err != nil {
 					logs.Error(err)
 					return
 				}
-				for _, job := range jobs{
-					if _, ok := locks[job.Topic]; !ok{
+				for _, job := range jobs {
+					if _, ok := locks[job.Topic]; !ok {
 						this.PushJobEvent(&common.JobEvent{
-							EventType:common.JOB_EVENT_SAVE,
-							Job:job,
+							EventType: common.JOB_EVENT_SAVE,
+							Job:       job,
 						})
 					}
 				}

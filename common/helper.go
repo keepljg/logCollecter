@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"encoding/json"
+	"logserver/configs"
 	"strings"
 	"time"
 )
@@ -48,7 +49,8 @@ func GetNowDate(format string) string {
 	var (
 		nTime time.Time
 	)
-	nTime = time.Now()
+	loc, _:= time.LoadLocation("Asia/Chongqing")
+	nTime = time.Now().In(loc)
 	return nTime.Format(format)
 }
 
@@ -68,18 +70,17 @@ func CreateIndexByType(topic string, indexType string) string {
 	default:
 		dataFormat = ""
 	}
-	if dataFormat != ""{
+	if dataFormat != "" {
 		return topic + "_" + GetNowDate(dataFormat)
-	}else{
+	} else {
 		return topic
 	}
 }
 
-
 func ExtractJobName(jobKey string) string {
-	return strings.TrimPrefix(jobKey, JOB_SAVE_DIR)
+	return strings.TrimPrefix(jobKey, configs.AppConfig.JobSave)
 }
 
 func ExtractLockName(jobKey string) string {
-	return strings.TrimPrefix(jobKey, JOB_LOCK_DIR)
+	return strings.TrimPrefix(jobKey, configs.AppConfig.JobLock)
 }

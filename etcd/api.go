@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/astaxie/beego/logs"
+	"github.com/gin-gonic/gin"
 	"go.etcd.io/etcd/clientv3"
 	"logserver/common"
 	"logserver/configs"
@@ -11,6 +12,7 @@ import (
 )
 
 func InitJobMgr() error {
+	gin.Logger()
 	var (
 		config clientv3.Config
 		client *clientv3.Client
@@ -40,7 +42,7 @@ func (this *JobMgr) AddNewLogjob(key string, job common.Jobs) (*common.Jobs, err
 		val    []byte
 		putRes *clientv3.PutResponse
 	)
-	jobKey = common.JOB_SAVE_DIR + key
+	jobKey = configs.AppConfig.JobSave + key
 	if val, err = json.Marshal(job); err != nil {
 		logs.Error(err)
 		return nil, err
@@ -69,7 +71,7 @@ func (this *JobMgr) DelLogJob(key string) (*common.Jobs, error) {
 		err    error
 		delRes *clientv3.DeleteResponse
 	)
-	jobKey = common.JOB_SAVE_DIR + key
+	jobKey = configs.AppConfig.JobSave + key
 	if delRes, err = this.Kv.Delete(context.TODO(), jobKey, clientv3.WithPrevKV()); err != nil {
 		logs.Error(err)
 		return nil, err
@@ -86,13 +88,13 @@ func (this *JobMgr) DelLogJob(key string) (*common.Jobs, error) {
 }
 
 // 批量删除log 任务
-func (this *JobMgr) BulkDelLogJob(keys []string) ( error) {
+func (this *JobMgr) BulkDelLogJob(keys []string) error {
 	var (
 		jobKey string
 		err    error
 	)
-	for _, key := range keys{
-		jobKey = common.JOB_SAVE_DIR + key
+	for _, key := range keys {
+		jobKey = configs.AppConfig.JobSave + key
 		if _, err = this.Kv.Delete(context.TODO(), jobKey, clientv3.WithPrevKV()); err != nil {
 			logs.Error(err)
 			return err
@@ -104,17 +106,17 @@ func (this *JobMgr) BulkDelLogJob(keys []string) ( error) {
 // 删除所有任务
 func (this *JobMgr) DeleteAllJob() error {
 	var (
-		jobs []*common.Jobs
+		jobs    []*common.Jobs
 		jobKeys []string
-		err error
+		err     error
 	)
-	if jobs, err = this.ListLogJobs(); err != nil{
+	if jobs, err = this.ListLogJobs(); err != nil {
 		return err
 	}
-	for _, v := range jobs{
+	for _, v := range jobs {
 		jobKeys = append(jobKeys, v.Topic)
 	}
-	if err = this.BulkDelLogJob(jobKeys); err != nil{
+	if err = this.BulkDelLogJob(jobKeys); err != nil {
 		return err
 	}
 	return nil
@@ -127,7 +129,7 @@ func (this *JobMgr) ListLogJobs() ([]*common.Jobs, error) {
 		getRes *clientv3.GetResponse
 		jobs   []*common.Jobs
 	)
-	if getRes, err = this.Kv.Get(context.TODO(), common.JOB_SAVE_DIR, clientv3.WithPrefix()); err != nil {
+	if getRes, err = this.Kv.Get(context.TODO(), configs.AppConfig.JobSave, clientv3.WithPrefix()); err != nil {
 		logs.Error(err)
 		return nil, err
 	}
@@ -146,9 +148,9 @@ func (this *JobMgr) ListLogLocks() (map[string]string, error) {
 	var (
 		err    error
 		getRes *clientv3.GetResponse
-		locks   map[string]string
+		locks  map[string]string
 	)
-	if getRes, err = this.Kv.Get(context.TODO(), common.JOB_LOCK_DIR, clientv3.WithPrefix()); err != nil {
+	if getRes, err = this.Kv.Get(context.TODO(), configs.AppConfig.JobLock, clientv3.WithPrefix()); err != nil {
 		logs.Error(err)
 		return nil, err
 	}
@@ -158,7 +160,6 @@ func (this *JobMgr) ListLogLocks() (map[string]string, error) {
 	}
 	return locks, nil
 }
-
 
 // 创建事物锁
 func (this *JobMgr) CreateJobLock(jobName string) *JobLock {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/astaxie/beego/logs"
 	"logserver/configs"
 	"logserver/es"
@@ -53,6 +54,7 @@ func main() {
 	}
 
 ERR:
+	fmt.Println(err)
 	logs.Error(err)
 	return
 }
