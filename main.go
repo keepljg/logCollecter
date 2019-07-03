@@ -3,13 +3,13 @@ package main
 import (
 	"fmt"
 	"github.com/astaxie/beego/logs"
-	"logserver/configs"
-	"logserver/es"
-	"logserver/etcd"
-	"logserver/httpServer"
-	"logserver/kafka"
-	"logserver/scheduler"
-	"logserver/serverlogs"
+	"logserver/slaver/configs"
+	"logserver/slaver/es"
+	"logserver/slaver/etcd"
+	"logserver/slaver/httpServer"
+	"logserver/slaver/kafka"
+	"logserver/slaver/scheduler"
+	"logserver/slaver/serverlogs"
 	"runtime"
 )
 
