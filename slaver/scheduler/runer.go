@@ -3,7 +3,6 @@ package scheduler
 import (
 	"fmt"
 	"go.etcd.io/etcd/clientv3"
-	"go.etcd.io/etcd/mvcc/mvccpb"
 	"golang.org/x/net/context"
 	"logserver/logs"
 	"logserver/slaver/common"
@@ -126,13 +125,13 @@ func WatcherJobs() {
 			for _, v := range eachChan.Events {
 				switch v.Type {
 				// 新的任务
-				case mvccpb.PUT:
+				case clientv3.EventTypePut:
 					if job, err = common.UnPackJob(v.Kv.Value); err == nil {
 						jobEvent = common.BuildJobEvent(common.JOB_EVENT_SAVE, job)
 						Gscheduler.PushJobEvent(jobEvent)
 					}
 					// 删除任务
-				case mvccpb.DELETE:
+				case clientv3.EventTypeDelete:
 					jobEvent = common.BuildJobEvent(common.JOB_EVENT_DELETE, &common.Jobs{
 						Topic: common.ExtractJobName(string(v.Kv.Key)),
 					})

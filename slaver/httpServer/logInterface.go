@@ -9,7 +9,6 @@ import (
 	"logserver/slaver/etcd"
 	"logserver/slaver/kafka"
 	"logserver/slaver/scheduler"
-	"tutu_task/handler"
 )
 
 func NewRouter() *fasthttprouter.Router {
@@ -28,7 +27,7 @@ func NewRouter() *fasthttprouter.Router {
 func LogJobList(ctx *fasthttp.RequestCtx) {
 	defer func() {
 		if err := recover(); err != nil {
-			handler.DoJSONWrite(ctx, 400, handler.GenerateResp("", -1, "failed"))
+			DoJSONWrite(ctx, 400, GenerateResp("", -1, "failed"))
 			return
 		}
 	}()
@@ -47,20 +46,20 @@ func LogJobList(ctx *fasthttp.RequestCtx) {
 		goto ERR
 	}
 
-	resp = handler.GenerateResp(string(res), 0, "success")
-	handler.DoJSONWrite(ctx, 200, resp)
+	resp = GenerateResp(string(res), 0, "success")
+	DoJSONWrite(ctx, 200, resp)
 	return
 
 ERR:
-	resp = handler.GenerateResp(err.Error(), -1, "failed")
-	handler.DoJSONWrite(ctx, 400, resp)
+	resp = GenerateResp(err.Error(), -1, "failed")
+	DoJSONWrite(ctx, 400, resp)
 	return
 }
 
 func LogPutJob(ctx *fasthttp.RequestCtx) {
 	defer func() {
 		if err := recover(); err != nil {
-			handler.DoJSONWrite(ctx, 400, handler.GenerateResp("", -1, "failed"))
+			DoJSONWrite(ctx, 400, GenerateResp("", -1, "failed"))
 			return
 		}
 	}()
@@ -99,20 +98,20 @@ func LogPutJob(ctx *fasthttp.RequestCtx) {
 	}); err != nil {
 		goto ERR
 	}
-	resp = handler.GenerateResp("添加成功", 0, "success")
-	handler.DoJSONWrite(ctx, 200, resp)
+	resp = GenerateResp("添加成功", 0, "success")
+	DoJSONWrite(ctx, 200, resp)
 	return
 
 ERR:
-	resp = handler.GenerateResp(err.Error(), -1, "failed")
-	handler.DoJSONWrite(ctx, 400, resp)
+	resp = GenerateResp(err.Error(), -1, "failed")
+	DoJSONWrite(ctx, 400, resp)
 	return
 }
 
 func LogDelJob(ctx *fasthttp.RequestCtx) {
 	defer func() {
 		if err := recover(); err != nil {
-			handler.DoJSONWrite(ctx, 400, handler.GenerateResp("", -1, "failed"))
+			DoJSONWrite(ctx, 400, GenerateResp("", -1, "failed"))
 			return
 		}
 	}()
@@ -130,18 +129,18 @@ func LogDelJob(ctx *fasthttp.RequestCtx) {
 		goto ERR
 	}
 	if res, err = json.Marshal(job); err == nil {
-		resp = handler.GenerateResp(string(res), 0, "success")
-		handler.DoJSONWrite(ctx, 200, resp)
+		resp = GenerateResp(string(res), 0, "success")
+		DoJSONWrite(ctx, 200, resp)
 		return
 	} else {
-		resp = handler.GenerateResp("删除成功", 0, "success")
-		handler.DoJSONWrite(ctx, 200, resp)
+		resp = GenerateResp("删除成功", 0, "success")
+		DoJSONWrite(ctx, 200, resp)
 		return
 	}
 
 ERR:
-	resp = handler.GenerateResp(err.Error(), -1, "failed")
-	handler.DoJSONWrite(ctx, 400, resp)
+	resp = GenerateResp(err.Error(), -1, "failed")
+	DoJSONWrite(ctx, 400, resp)
 	return
 }
 
@@ -149,7 +148,7 @@ ERR:
 func LogBulkDelJob(ctx *fasthttp.RequestCtx) {
 	defer func() {
 		if err := recover(); err != nil {
-			handler.DoJSONWrite(ctx, 400, handler.GenerateResp("", -1, "failed"))
+			DoJSONWrite(ctx, 400, GenerateResp("", -1, "failed"))
 			return
 		}
 	}()
@@ -178,13 +177,13 @@ func LogBulkDelJob(ctx *fasthttp.RequestCtx) {
 		goto ERR
 	}
 
-	resp = handler.GenerateResp("删除成功", 0, "success")
-	handler.DoJSONWrite(ctx, 200, resp)
+	resp = GenerateResp("删除成功", 0, "success")
+	DoJSONWrite(ctx, 200, resp)
 	return
 
 ERR:
-	resp = handler.GenerateResp(err.Error(), -1, "failed")
-	handler.DoJSONWrite(ctx, 400, resp)
+	resp = GenerateResp(err.Error(), -1, "failed")
+	DoJSONWrite(ctx, 400, resp)
 	return
 }
 
@@ -192,7 +191,7 @@ ERR:
 func LogAllDelJob(ctx *fasthttp.RequestCtx) {
 	defer func() {
 		if err := recover(); err != nil {
-			handler.DoJSONWrite(ctx, 400, handler.GenerateResp("", -1, "failed"))
+			DoJSONWrite(ctx, 400, GenerateResp("", -1, "failed"))
 			return
 		}
 	}()
@@ -205,20 +204,20 @@ func LogAllDelJob(ctx *fasthttp.RequestCtx) {
 		goto ERR
 	}
 
-	resp = handler.GenerateResp("删除成功", 0, "success")
-	handler.DoJSONWrite(ctx, 200, resp)
+	resp = GenerateResp("删除成功", 0, "success")
+	DoJSONWrite(ctx, 200, resp)
 	return
 
 ERR:
-	resp = handler.GenerateResp(err.Error(), -1, "failed")
-	handler.DoJSONWrite(ctx, 400, resp)
+	resp = GenerateResp(err.Error(), -1, "failed")
+	DoJSONWrite(ctx, 400, resp)
 	return
 }
 
 func GetRuningTopic(ctx *fasthttp.RequestCtx) {
 	defer func() {
 		if err := recover(); err != nil {
-			handler.DoJSONWrite(ctx, 400, handler.GenerateResp("", -1, "failed"))
+			DoJSONWrite(ctx, 400, GenerateResp("", -1, "failed"))
 			return
 		}
 	}()
@@ -229,15 +228,15 @@ func GetRuningTopic(ctx *fasthttp.RequestCtx) {
 	for _, jobWork := range scheduler.Gscheduler.JobWorkTable {
 		jobs = append(jobs, jobWork.Job.Topic)
 	}
-	resp = handler.GenerateResp(jobs, 0, "success")
-	handler.DoJSONWrite(ctx, 200, resp)
+	resp = GenerateResp(jobs, 0, "success")
+	DoJSONWrite(ctx, 200, resp)
 	return
 }
 
 func LogToKafka(ctx *fasthttp.RequestCtx) {
 	defer func() {
 		if err := recover(); err != nil {
-			handler.DoJSONWrite(ctx, 400, handler.GenerateResp("", -2, "failed"))
+			DoJSONWrite(ctx, 400, GenerateResp("", -2, "failed"))
 			return
 		}
 	}()
@@ -263,12 +262,12 @@ func LogToKafka(ctx *fasthttp.RequestCtx) {
 	if err = kafka.SendToKafka(kafkaLogs, topic); err != nil {
 		goto ERR
 	}
-	resp = handler.GenerateResp("插入成功", 0, "success")
-	handler.DoJSONWrite(ctx, 200, resp)
+	resp = GenerateResp("插入成功", 0, "success")
+	DoJSONWrite(ctx, 200, resp)
 	return
 ERR:
-	resp = handler.GenerateResp(err.Error(), -1, "failed")
-	handler.DoJSONWrite(ctx, 400, resp)
+	resp = GenerateResp(err.Error(), -1, "failed")
+	DoJSONWrite(ctx, 400, resp)
 	return
 }
 

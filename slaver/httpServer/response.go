@@ -12,7 +12,7 @@ var (
 	strApplicationJSON = []byte("application/json")
 )
 
-func GenerateResp(result string, code int, message string) map[string]map[string]interface{} {
+func GenerateResp(result interface{}, code int, message string) map[string]map[string]interface{} {
 	resp := make(map[string]map[string]interface{})
 	resp["data"] = make(map[string]interface{})
 	resp["data"]["result"] = result
