@@ -4,23 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/astaxie/beego/logs"
-	"github.com/gin-gonic/gin"
 	"go.etcd.io/etcd/clientv3"
 	"logserver/slaver/common"
-	"logserver/slaver/configs"
+	"logserver/slaver/conf"
 	"time"
 )
 
 func InitJobMgr() error {
-	gin.Logger()
 	var (
 		config clientv3.Config
 		client *clientv3.Client
 		err    error
 	)
 	config = clientv3.Config{
-		Endpoints:            []string{configs.AppConfig.EtcdAddr},
-		DialKeepAliveTimeout: time.Duration(configs.AppConfig.EtcdTimeOut) * time.Second,
+		Endpoints:            []string{conf.EtcdConf.Addr},
+		DialKeepAliveTimeout: time.Duration(conf.EtcdConf.EtcdTimeOut) * time.Second,
 	}
 	if client, err = clientv3.New(config); err != nil {
 		return err
@@ -42,7 +40,7 @@ func (this *JobMgr) AddNewLogjob(key string, job common.Jobs) (*common.Jobs, err
 		val    []byte
 		putRes *clientv3.PutResponse
 	)
-	jobKey = configs.AppConfig.JobSave + key
+	jobKey = conf.JobConf.JobSave + key
 	if val, err = json.Marshal(job); err != nil {
 		logs.Error(err)
 		return nil, err
@@ -71,7 +69,7 @@ func (this *JobMgr) DelLogJob(key string) (*common.Jobs, error) {
 		err    error
 		delRes *clientv3.DeleteResponse
 	)
-	jobKey = configs.AppConfig.JobSave + key
+	jobKey = conf.JobConf.JobSave + key
 	if delRes, err = this.Kv.Delete(context.TODO(), jobKey, clientv3.WithPrevKV()); err != nil {
 		logs.Error(err)
 		return nil, err
@@ -94,7 +92,7 @@ func (this *JobMgr) BulkDelLogJob(keys []string) error {
 		err    error
 	)
 	for _, key := range keys {
-		jobKey = configs.AppConfig.JobSave + key
+		jobKey = conf.JobConf.JobSave + key
 		if _, err = this.Kv.Delete(context.TODO(), jobKey, clientv3.WithPrevKV()); err != nil {
 			logs.Error(err)
 			return err
@@ -129,7 +127,7 @@ func (this *JobMgr) ListLogJobs() ([]*common.Jobs, error) {
 		getRes *clientv3.GetResponse
 		jobs   []*common.Jobs
 	)
-	if getRes, err = this.Kv.Get(context.TODO(), configs.AppConfig.JobSave, clientv3.WithPrefix()); err != nil {
+	if getRes, err = this.Kv.Get(context.TODO(), conf.JobConf.JobSave, clientv3.WithPrefix()); err != nil {
 		logs.Error(err)
 		return nil, err
 	}
@@ -150,7 +148,7 @@ func (this *JobMgr) ListLogLocks() (map[string]string, error) {
 		getRes *clientv3.GetResponse
 		locks  map[string]string
 	)
-	if getRes, err = this.Kv.Get(context.TODO(), configs.AppConfig.JobLock, clientv3.WithPrefix()); err != nil {
+	if getRes, err = this.Kv.Get(context.TODO(), conf.JobConf.JobLock, clientv3.WithPrefix()); err != nil {
 		logs.Error(err)
 		return nil, err
 	}

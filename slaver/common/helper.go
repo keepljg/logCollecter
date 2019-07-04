@@ -3,7 +3,7 @@ package common
 import (
 	"context"
 	"encoding/json"
-	"logserver/slaver/configs"
+	"logserver/slaver/conf"
 	"strings"
 	"time"
 )
@@ -44,6 +44,7 @@ func SliceClear(s *[]interface{}) {
 	*s = (*s)[0:0]
 }
 
+
 // 获取当前的时间
 func GetNowDate(format string) string {
 	var (
@@ -78,9 +79,10 @@ func CreateIndexByType(topic string, indexType string) string {
 }
 
 func ExtractJobName(jobKey string) string {
-	return strings.TrimPrefix(jobKey, configs.AppConfig.JobSave)
+	return strings.TrimPrefix(jobKey, conf.JobConf.JobSave)
 }
 
 func ExtractLockName(jobKey string) string {
-	return strings.TrimPrefix(jobKey, configs.AppConfig.JobLock)
+	return strings.TrimPrefix(jobKey, conf.JobConf.JobLock)
 }
+

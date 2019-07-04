@@ -2,8 +2,10 @@ package es
 
 import (
 	"context"
+	"fmt"
 	"github.com/astaxie/beego/logs"
 	"github.com/olivere/elastic"
+	"logserver/slaver/conf"
 )
 
 func InitElasticClient() error {
@@ -15,16 +17,11 @@ func InitElasticClient() error {
 	)
 
 	searchClient = new(ElasticClient)
-	searchClient.Client, err = elastic.NewClient(elastic.SetURL("http://192.168.182.148:9200", "http://192.168.182.147:9200"))
+	searchClient.Client, err = elastic.NewClient(elastic.SetURL(conf.EsConf.Addr...))
+	fmt.Println(conf.EsConf.Addr)
 	if err != nil {
 		panic(err)
 	}
-
-	//pingRes, code, err = searchClient.Client.Ping("http://192.168.182.148:9200", "http://192.168.182.147:9200", "http://192.168.182.188:9200", "http://192.168.182.189:9200", "http://192.168.182.190:9200", "http://192.168.182.191:9200").Do(context.Background())
-	//if err != nil {
-	//	panic(err)
-	//}
-	//logs.Info("Elasticsearch returned with code %d and version %s\n", code, pingRes.Version.Number)
 
 	GelasticCli = searchClient
 	return err

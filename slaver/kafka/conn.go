@@ -2,7 +2,7 @@ package kafka
 
 import (
 	"github.com/Shopify/sarama"
-	"logserver/slaver/configs"
+	"logserver/slaver/conf"
 	"time"
 )
 
@@ -24,11 +24,11 @@ func InitKafka() error {
 	config.Producer.Return.Errors = true // 是否等待服务器都成功失败响应（如果config.Producer.RequiredAcks设置为NoResponse 则不可设置)
 
 	//异步生产者
-	//if Producer, err = sarama.NewAsyncProducer([]string{configs.AppConfig.KafkaAddr}, config); err != nil{
+	//if Producer, err = sarama.NewAsyncProducer([]string{conf.AppConfig.KafkaAddr}, config); err != nil{
 	//	return err
 	//}
 	//异步生产者
-	if Producer, err = sarama.NewSyncProducer([]string{configs.AppConfig.KafkaAddr}, config); err != nil {
+	if Producer, err = sarama.NewSyncProducer([]string{conf.KafkaConf.Addr}, config); err != nil {
 		return err
 	}
 	return nil
@@ -45,7 +45,7 @@ func NewConsumer() (sarama.Consumer, error) {
 	config.Version = sarama.V2_0_1_0
 	config.Consumer.Return.Errors = true
 	config.Consumer.Offsets.CommitInterval = 1 * time.Second // 提交offect时间间隔 1s
-	if consumer, err = sarama.NewConsumer([]string{configs.AppConfig.KafkaAddr}, config); err != nil {
+	if consumer, err = sarama.NewConsumer([]string{conf.KafkaConf.Addr}, config); err != nil {
 		return nil, err
 	}
 	return consumer, nil

@@ -4,3 +4,4 @@ demo.go
 logserver.ini
 build*
 *.ini
+.gitignore

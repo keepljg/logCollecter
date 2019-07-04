@@ -5,7 +5,7 @@ import (
 	"github.com/astaxie/beego/logs"
 	"log"
 	"logserver/slaver/common"
-	"logserver/slaver/configs"
+	"logserver/slaver/conf"
 	"logserver/slaver/es"
 	"logserver/slaver/etcd"
 	"time"
@@ -32,10 +32,10 @@ func SendToKafka(datas []string, topic string) error {
 	return err
 }
 
-func ConsumerFromKafka4(info *common.JobWorkInfo, lock *etcd.JobLock) {
+func ConsumerFromKafka4(info *common.JobWorkInfo, lock *etcd.JobLock, logCount chan int) {
 	config := sarama.NewConfig()
 	config.Version = sarama.V2_0_1_0
-	client, err := sarama.NewClient([]string{configs.AppConfig.KafkaAddr}, config)
+	client, err := sarama.NewClient([]string{conf.KafkaConf.Addr}, config)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -55,16 +55,16 @@ func ConsumerFromKafka4(info *common.JobWorkInfo, lock *etcd.JobLock) {
 		log.Fatalln(err)
 	}
 
-	//defer consumer.Close()
+	defer consumer.Close()
 
 	//wg := &sync.WaitGroup{}
 
 	for _, v := range pids {
 		//wg.Add(1)
-		go consume(consumer, offsetManager, v, info, lock)
+		go consume(consumer, offsetManager, v, info, lock, logCount)
 	}
 }
-func consume(c sarama.Consumer, om sarama.OffsetManager, p int32, info *common.JobWorkInfo, lock *etcd.JobLock) {
+func consume(c sarama.Consumer, om sarama.OffsetManager, p int32, info *common.JobWorkInfo, lock *etcd.JobLock, logCount chan int) {
 	var (
 		pom    sarama.PartitionOffsetManager
 		pc     sarama.PartitionConsumer
@@ -104,12 +104,16 @@ func consume(c sarama.Consumer, om sarama.OffsetManager, p int32, info *common.J
 			//es.GelasticCli.CreateSignDocument(common.CreateIndexByType(info.Job.Topic, info.Job.IndexType), string(msg.Value), info.Job.Pipeline)
 			if len(logDatas) >= 1000 {
 				es.GelasticCli.CreateBulkDocument(common.CreateIndexByType(info.Job.Topic, info.Job.IndexType), logDatas, info.Job.Pipeline)
+
+				logCount <- len(logDatas)
 				common.SliceClear(&logDatas)
 			}
 			//log.Printf("[%v] Consumed message offset %v content is %s\n", p, msg.Offset, string(msg.Value))
 		case <-t.C:
 			if len(logDatas) > 0 {
 				es.GelasticCli.CreateBulkDocument(common.CreateIndexByType(info.Job.Topic, info.Job.IndexType), logDatas, info.Job.Pipeline)
+
+				logCount <- len(logDatas)
 				common.SliceClear(&logDatas)
 			}
 			t.Reset(time.Second * 1)

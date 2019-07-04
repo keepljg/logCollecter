@@ -2,14 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/astaxie/beego/logs"
-	"logserver/slaver/configs"
+	"logserver/logs"
+	"logserver/slaver/conf"
 	"logserver/slaver/es"
 	"logserver/slaver/etcd"
 	"logserver/slaver/httpServer"
 	"logserver/slaver/kafka"
 	"logserver/slaver/scheduler"
-	"logserver/slaver/serverlogs"
 	"runtime"
 )
 
@@ -23,15 +22,15 @@ func main() {
 		err error
 	)
 	// 初始化配置
-	if err = configs.InitConf("ini", "./logserver.ini"); err != nil {
+	if err = conf.InitConf(); err != nil {
 		goto ERR
 	}
 
 	initEnv()
-	// 初始化logger
-	if err = serverlogs.InitLogger(); err != nil {
-		goto ERR
-	}
+	//// 初始化logger
+	//if err = serverlogs.InitLogger(); err != nil {
+	//	goto ERR
+	//}
 
 	// 初始化etcd
 	if err = etcd.InitJobMgr(); err != nil {
@@ -48,13 +47,12 @@ func main() {
 	}
 
 	scheduler.InitScheduler()
-
+	fmt.Println("123")
 	if err = httpServer.InitHttpServer(); err != nil {
 		goto ERR
 	}
 
 ERR:
-	fmt.Println(err)
-	logs.Error(err)
+	logs.ERROR(err)
 	return
 }

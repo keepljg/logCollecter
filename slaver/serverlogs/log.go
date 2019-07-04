@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/astaxie/beego/logs"
-	"logserver/slaver/configs"
+	"logserver/slaver/conf"
 )
 
 func convertLogLevel(level string) int {
@@ -26,8 +26,8 @@ func convertLogLevel(level string) int {
 func InitLogger() (err error) {
 
 	config := make(map[string]interface{})
-	config["filename"] = configs.AppConfig.LogPath
-	config["level"] = convertLogLevel(configs.AppConfig.LogLevel)
+	config["filename"] = conf.AppConfig.LogPath
+	config["level"] = convertLogLevel(conf.AppConfig.LogLevel)
 
 	configStr, err := json.Marshal(config)
 	if err != nil {

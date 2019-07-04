@@ -2,12 +2,12 @@ package scheduler
 
 import (
 	"fmt"
-	"github.com/astaxie/beego/logs"
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/mvcc/mvccpb"
 	"golang.org/x/net/context"
+	"logserver/logs"
 	"logserver/slaver/common"
-	"logserver/slaver/configs"
+	"logserver/slaver/conf"
 	"logserver/slaver/etcd"
 	"logserver/slaver/kafka"
 	"time"
@@ -16,12 +16,14 @@ import (
 func InitScheduler() {
 	NewScheduler()
 	go Gscheduler.ScheuleLoop()
-	go Gscheduler.restartLogJob()
+	Gscheduler.restartLogJob()
+	go Gscheduler.CalculatingPressure()
 	WatcherJobs()
 }
 
 func NewScheduler() {
 	Gscheduler = &Scheduler{
+		logCount:     make(chan int, 1000),
 		JobEventChan: make(chan *common.JobEvent, 1000),
 		JobWorkTable: make(map[string]*common.JobWorkInfo),
 	}
@@ -58,7 +60,7 @@ func (this *Scheduler) eventWorker(job *common.Jobs) {
 		jobWorkInfo = common.NewJobWorkInfo(job)
 		if jobWork, ok := this.JobWorkTable[job.Topic]; !ok {
 			this.JobWorkTable[job.Topic] = jobWorkInfo
-			kafka.ConsumerFromKafka4(jobWorkInfo, jobLock)
+			kafka.ConsumerFromKafka4(jobWorkInfo, jobLock, this.logCount)
 		} else {
 			// 重新开启新任务
 			this.reEventWork(jobWork, job, jobLock)
@@ -76,7 +78,7 @@ func (this *Scheduler) reEventWork(jobWork *common.JobWorkInfo, newJob *common.J
 	delete(this.JobWorkTable, jobWork.Job.Topic)
 	jobWorkInfo = common.NewJobWorkInfo(newJob)
 	this.JobWorkTable[newJob.Topic] = jobWorkInfo
-	kafka.ConsumerFromKafka4(jobWorkInfo, lock)
+	kafka.ConsumerFromKafka4(jobWorkInfo, lock, this.logCount)
 }
 
 // 处理日志任务
@@ -104,11 +106,11 @@ func WatcherJobs() {
 		watcherReversion int64
 		watchChan        clientv3.WatchChan
 	)
-	if getResp, err = etcd.GjobMgr.Kv.Get(context.TODO(), configs.AppConfig.JobSave, clientv3.WithPrefix()); err != nil {
-		logs.Error(err)
+	if getResp, err = etcd.GjobMgr.Kv.Get(context.TODO(), conf.JobConf.JobSave, clientv3.WithPrefix()); err != nil {
+		logs.ERROR(err)
 		return
 	}
-
+	fmt.Println( getResp, err)
 	// 启动时先将etcd中的topic消费
 	for _, v := range getResp.Kvs {
 		if job, err = common.UnPackJob(v.Value); err == nil {
@@ -116,11 +118,10 @@ func WatcherJobs() {
 			Gscheduler.PushJobEvent(jobEvent)
 		}
 	}
-
 	go func() {
 		// 从getResp header 下一个版本进行监听
 		watcherReversion = getResp.Header.Revision + 1
-		watchChan = etcd.GjobMgr.Watcher.Watch(context.TODO(), configs.AppConfig.JobSave, clientv3.WithRev(watcherReversion), clientv3.WithPrefix())
+		watchChan = etcd.GjobMgr.Watcher.Watch(context.TODO(), conf.JobConf.JobSave, clientv3.WithRev(watcherReversion), clientv3.WithPrefix())
 		for eachChan := range watchChan {
 			for _, v := range eachChan.Events {
 				switch v.Type {
@@ -159,12 +160,12 @@ func (this *Scheduler) restartLogJob() {
 				)
 				// 所有在etcd中的log任务
 				if jobs, err = etcd.GjobMgr.ListLogJobs(); err != nil {
-					logs.Error(err)
+					logs.ERROR(err)
 					return
 				}
 				// 所有抢到锁的任务
 				if locks, err = etcd.GjobMgr.ListLogLocks(); err != nil {
-					logs.Error(err)
+					logs.ERROR(err)
 					return
 				}
 				for _, job := range jobs {
@@ -178,6 +179,35 @@ func (this *Scheduler) restartLogJob() {
 				t.Reset(time.Second * 60)
 			}
 		}
-
 	}()
 }
+
+// 计算压力
+func (this *Scheduler) CalculatingPressure() {
+	var (
+		jobCountSum, logCountSum int
+	)
+	counts := make([]int, 0)
+	t := time.NewTimer(time.Second * 10)
+	for {
+		select {
+		case count := <-this.logCount:
+			counts = append(counts, count)
+		case <-t.C:
+			for _, count := range counts {
+				logCountSum += count
+			}
+			logs.DEBUG("logCountSum is ", logCountSum)
+			counts = make([]int, 0)
+			// todo 上报信息
+
+			jobCountSum = len(this.JobWorkTable)
+			// todo 上报信息
+			logs.INFO(jobCountSum)
+			t.Reset(time.Second * 10)
+		}
+	}
+	return
+}
+
+

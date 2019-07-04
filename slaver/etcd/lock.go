@@ -3,9 +3,9 @@ package etcd
 import (
 	"context"
 	"errors"
-	"github.com/astaxie/beego/logs"
 	"go.etcd.io/etcd/clientv3"
-	"logserver/slaver/configs"
+	"logserver/logs"
+	"logserver/slaver/conf"
 )
 
 //分布式乐观锁
@@ -32,14 +32,14 @@ func (this *JobLock) TryToLock() error {
 	)
 	// 创建一个租约
 	if leaseGrantResp, err = this.lease.Grant(context.TODO(), 10); err != nil {
-		logs.Error(err)
+		logs.ERROR(err)
 		return err
 	}
 	leaseId = leaseGrantResp.ID
 	ctx, cancelFunc = context.WithCancel(context.TODO())
 	// 进行续租
 	if leaseKeepActiveChan, err = this.lease.KeepAlive(ctx, leaseId); err != nil {
-		logs.Error(err)
+		logs.ERROR(err)
 		goto FAIL
 	}
 
@@ -50,7 +50,7 @@ func (this *JobLock) TryToLock() error {
 		)
 		for {
 			select {
-			case leaseKeepResp = <-leaseKeepActiveChan:
+			case leaseKeepResp = <-leaseKeepActiveChan: // 租约消失
 				if leaseKeepResp == nil {
 					goto END
 				}
@@ -59,7 +59,7 @@ func (this *JobLock) TryToLock() error {
 	END:
 	}()
 	// 锁路径
-	lockKey = configs.AppConfig.JobLock + this.jobName
+	lockKey = conf.JobConf.JobLock + this.jobName
 
 	// 创建一个事物
 	txn = this.kv.Txn(context.TODO())
@@ -76,7 +76,7 @@ func (this *JobLock) TryToLock() error {
 
 	if !txnResp.Succeeded {
 		err = errors.New("锁正在被占用")
-		logs.Info(this.jobName + " 锁被占用")
+		logs.INFO(this.jobName + " 锁被占用")
 		goto FAIL
 	}
 
