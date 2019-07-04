@@ -5,3 +5,6 @@ logserver.ini
 build*
 *.ini
 .gitignore
+vendor/
+slaver/runtime/*
+master/runtime/*
